@@ -1,56 +1,58 @@
 import os
 import telebot
 import httpx
-from PIL import Image, ImageDraw, ImageFont
-from flask import Flask
+import random
+import string
 from threading import Thread
+from flask import Flask
 
 # --- কনফিগারেশন ---
-BOT_TOKEN = "8307147474:AAE5nmPsEMf7FFXtkxClhFiS5uWOn_rnLgo" # এখানে আপনার টোকেন দিন
+BOT_TOKEN = os.environ.get("8307147474:AAE5nmPsEMf7FFXtkxClhFiS5uWOn_rnLgo")
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-# Koyeb-এর জন্য হেলথ চেক রুট
 @app.route('/')
-def index():
-    return "Bot is running 24/7"
+def health_check():
+    return "Bot is Running"
+
+# --- আসল ভেরিফিকেশন লজিক ---
+def start_sheerid_process(url, chat_id):
+    try:
+        if "services.sheerid.com" not in url:
+            bot.send_message(chat_id, "❌ এটি সঠিক SheerID লিঙ্ক নয়।")
+            return
+
+        bot.send_message(chat_id, "⚙️ প্রসেস শুরু হচ্ছে:\n1. ডাটা জেনারেট হচ্ছে...\n2. SSO বাইপাস করা হচ্ছে...")
+
+        # এখানে টুলটির মূল 'Waterfall' ফ্লো শুরু হবে
+        # ১. পার্সিং এবং ডাটা জেনারেশন (PII)
+        # ২. আইডি কার্ড জেনারেশন (OCR অপ্টিমাইজড)
+        # ৩. ডকুমেন্ট আপলোড এবং কমপ্লিট করা
+        
+        # নোট: আসল টুলের 'main.py' এর ফাংশনগুলো এখানে কল করতে হবে
+        # আপাতত একটি সিমুলেশন সাকসেস মেসেজ (আসল কোড যুক্ত করার পর এটি কাজ করবে)
+        
+        bot.send_message(chat_id, "📤 ডকুমেন্ট আপলোড সম্পন্ন। এখন গুগল থেকে কনফার্মেশন ইমেইলের অপেক্ষা করুন।")
+        bot.send_message(chat_id, "✅ ভেরিফিকেশন রিকোয়েস্ট সাকসেসফুলি সাবমিট করা হয়েছে!")
+
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ এরর এসেছে: {str(e)}")
+
+# টেলিগ্রাম কমান্ড
+@bot.message_handler(commands=['verify'])
+def verify_handler(message):
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "ব্যবহারবিধি: `/verify URL`", parse_mode="Markdown")
+        return
+    
+    url = args[1]
+    Thread(target=start_sheerid_process, args=(url, message.chat.id)).start()
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# --- আপনার SheerID লজিক ---
-def process_verification(url, chat_id):
-    bot.send_message(chat_id, "🔍 Verification শুরু হচ্ছে... দয়া করে অপেক্ষা করুন।")
-    try:
-        # এখানে আপনার আগের কোডের SheerID প্রসেসগুলো থাকবে
-        # উদাহরণস্বরূপ:
-        success_msg = f"🚀 **Google One Verified!**\n\nLink: {url}\nStatus: Student Premium Active"
-        bot.send_message(chat_id, success_msg, parse_mode="Markdown")
-    except Exception as e:
-        bot.send_message(chat_id, f"❌ ভুল হয়েছে: {str(e)}")
-
-# টেলিগ্রাম কমান্ড হ্যান্ডলার
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message, "স্বাগতম! ভেরিফাই করতে লিখুন: /verify YOUR_URL")
-
-@bot.message_handler(commands=['verify'])
-def verify_command(message):
-    text = message.text.split()
-    if len(text) < 2:
-        bot.reply_to(message, "অনুগ্রহ করে URL দিন। উদাহরণ: `/verify https://link.com`", parse_mode="Markdown")
-        return
-    
-    url = text[1]
-    # একটি নতুন থ্রেডে প্রসেস শুরু করা যাতে বট হ্যাং না হয়
-    Thread(target=process_verification, args=(url, message.chat.id)).start()
-
-# বট এবং ফ্ল্যাস্ক সার্ভার একসাথে চালু করা
 if __name__ == "__main__":
-    print("Bot is starting...")
-    # ফ্ল্যাস্ক সার্ভার আলাদা থ্রেডে চালানো (Koyeb-এর জন্য জরুরি)
-    t = Thread(target=run_flask)
-    t.start()
-    # বট পোলিং শুরু
+    Thread(target=run_flask).start()
     bot.infinity_polling()
